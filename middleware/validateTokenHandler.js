@@ -2,25 +2,30 @@ const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 
 const validateToken = asyncHandler(async (req, res, next) => {
-  // If any token available in the incoming request
-  let storedToken = req.cookies?.jwt
+  let token;
   let authHeader = req.headers.Authorization || req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer")) {
-   let token = authHeader.split(" ")[1] || storedToken;
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECERT, (err, decoded) => {
-      if (err) {
-        // Minor update
-        return res.status(401).json({message: 'User is not authorized'})
-      }
-      req.user = decoded.user;
-      next();
-    });
+  let storedToken = req.cookies?.jwt; // Handle token from cookies
 
-    if (!token) {
-        // Minor update
-     return res.status(401).json({message: 'User is not authorized or token is missing'})
-    }
+  // Check if the token is in the authorization header or cookies
+  if (authHeader && authHeader.startsWith("Bearer")) {
+    token = authHeader.split(" ")[1];
+  } else if (storedToken) {
+    token = storedToken;
   }
+
+  // If no token is found, respond with an error
+  if (!token) {
+    return res.status(401).json({ message: 'User is not authorized or token is missing' });
+  }
+
+  // Verify the token
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: 'User is not authorized' });
+    }
+    req.user = decoded.user;
+    next();
+  });
 });
 
 module.exports = validateToken;
